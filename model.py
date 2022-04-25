@@ -3,6 +3,7 @@ import numpy as np
 import math
 from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 class Model:
     def __init__(self) -> None:
         self.learning_rate = 0.001
@@ -18,10 +19,12 @@ class Model:
         self.W = np.random.uniform(0, 1, (self.hidden_dimension, self.hidden_dimension))
         self.V = np.random.uniform(0, 1, (self.output_dimension, self.hidden_dimension))
 
+
     def sigmoid(self, x):
         return 1/(1+np.exp(-x))
 
     def model(self):
+
         for epoch in range(self.epochs):
     
             
@@ -101,6 +104,7 @@ class Model:
                 self.W -= self.learning_rate * dW
 
     def predict(self, X,Y, flag=False):
+
         preds = []
         for i in range(Y.shape[0]):
             x, y = X[i], Y[i]
@@ -117,9 +121,14 @@ class Model:
             preds.append(mul_v)
         preds = np.array(preds)
         if flag:
+
+            fig = plt.figure(figsize=(14,8))
             plt.plot(preds[:, 0, 0], 'g')
             plt.plot(Y[:, 0], 'r')
+
             plt.show()
+
+
         return preds, math.sqrt(mean_squared_error(Y[:, 0], preds[:, 0, 0]))
     
     def test_predict(self):

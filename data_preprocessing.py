@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
+from matplotlib.backends.backend_pdf import PdfPages
 class preprocess_data:
     def __init__(self, fuel_grade) -> None:
         self.data = pd.read_csv('Data/PET_PRI_GND_DCUS_NUS_W.csv')
