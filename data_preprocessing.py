@@ -1,10 +1,9 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
-from matplotlib.backends.backend_pdf import PdfPages
 class preprocess_data:
-    def __init__(self, fuel_grade) -> None:
-        self.data = pd.read_csv('Data/PET_PRI_GND_DCUS_NUS_W.csv')
+    def __init__(self, fuel_grade):
+        self.data = pd.read_csv('https://personal.utdallas.edu/~sxs200389/PET_PRI_GND_DCUS_NUS_W.csv')
         self.data = np.array(self.data[fuel_grade])
 
     def preproces(self):
@@ -16,13 +15,12 @@ class preprocess_data:
         sequence_len = 10
         num_records = len(self.data) - int(0.2 * len(self.data))
         scaler = MinMaxScaler(feature_range=(0,1))
-        for i in range(num_records - 10):
-            X_train.append(self.data[i:i+sequence_len])
-            Y_train.append(self.data[i+sequence_len])
+        for record in range(num_records - sequence_len):
+            X_train.append(self.data[record:record+sequence_len])
+            Y_train.append(self.data[record+sequence_len])
             
         X_train = np.array(X_train)
         X_train = X_train.reshape(-1,sequence_len)
-        #print(X.shape)
         X_train = scaler.fit_transform(X_train)
         X_train = np.expand_dims(X_train, axis=2)
 
@@ -34,9 +32,9 @@ class preprocess_data:
         X_test = []
         Y_test = []
 
-        for i in range(len(self.data) - num_records, len(self.data)-sequence_len):
-            X_test.append(self.data[i:i+sequence_len])
-            Y_test.append(self.data[i+sequence_len])
+        for record in range(len(self.data) - num_records, len(self.data)-sequence_len):
+            X_test.append(self.data[record:record+sequence_len])
+            Y_test.append(self.data[record+sequence_len])
 
         scaler = MinMaxScaler(feature_range=(0,1))
 

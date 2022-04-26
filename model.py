@@ -3,21 +3,20 @@ import numpy as np
 import math
 from sklearn.metrics import mean_squared_error
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
 class Model:
-    def __init__(self) -> None:
+    def __init__(self):
         self.learning_rate = 0.001
-        self.epochs = 1000
+        self.epochs = 300
         self.sequence_len = 10
         self.hidden_dimension = 2 * self.sequence_len
         self.output_dimension = 1
-        self.bptt_truncate = 5
+        self.bptt_t = 5
         data = preprocess_data('A1')
         self.X_train, self.X_test, self.Y_train, self.Y_test = data.preproces()
 
-        self.U = np.random.uniform(0, 1, (self.hidden_dimension, self.sequence_len))
-        self.W = np.random.uniform(0, 1, (self.hidden_dimension, self.hidden_dimension))
-        self.V = np.random.uniform(0, 1, (self.output_dimension, self.hidden_dimension))
+        self.Wxh = np.random.uniform(0, 1, (self.hidden_dimension, self.sequence_len))
+        self.F = np.random.uniform(0, 1, (self.hidden_dimension, self.hidden_dimension))
+        self.Why = np.random.uniform(0, 1, (self.output_dimension, self.hidden_dimension))
 
 
     def sigmoid(self, x):
@@ -30,106 +29,108 @@ class Model:
             
             _, train_rmse = self.predict(self.X_train, self.Y_train)
             _, test_rmse = self.predict(self.X_test, self.Y_test)
-            print('Epoch: ', epoch + 1, ', Train RMSE: ', train_rmse, ', Test RMSE: ', test_rmse)
+            print(f'Epoch: {epoch + 1}  Train RMSE:  {train_rmse} Test RMSE:  {test_rmse}')
 
-            for i in range(self.Y_train.shape[0]):
-                x, y = self.X_train[i], self.Y_train[i]
+            for record in range(self.Y_train.shape[0]):
+                x, y = self.X_train[record], self.Y_train[record]
             
+                #Initialize parameters
                 layers = []
-                prev_s = np.zeros((self.hidden_dimension, 1))
-                dU = np.zeros(self.U.shape)
-                dV = np.zeros(self.V.shape)
-                dW = np.zeros(self.W.shape)
+                pre_state = np.zeros((self.hidden_dimension, 1))
+                dWxh = np.zeros(self.Wxh.shape)
+                dWhy = np.zeros(self.Why.shape)
+                dF = np.zeros(self.F.shape)
                 
-                dU_t = np.zeros(self.U.shape)
-                dV_t = np.zeros(self.V.shape)
-                dW_t = np.zeros(self.W.shape)
+                dWxh_t = np.zeros(self.Wxh.shape)
+                dWhy_t = np.zeros(self.Why.shape)
+                dF_t = np.zeros(self.F.shape)
                 
-                dU_i = np.zeros(self.U.shape)
-                dW_i = np.zeros(self.W.shape)
+                dWxh_i = np.zeros(self.Wxh.shape)
+                dF_i = np.zeros(self.F.shape)
                 
                 
                 for sequence in range(self.sequence_len):
-                    new_input = np.zeros(x.shape)
-                    new_input[sequence] = x[sequence]
-                    mul_w = np.dot(self.W, prev_s)
-                    mul_u = np.dot(self.U, new_input)
-                    add = mul_w + mul_u
-                    s = self.sigmoid(add)
-                    mul_v = np.dot(self.V, s)
-                    layers.append({'s':s, 'prev_s':prev_s})
-                    prev_s = s
+                    temp = np.zeros(x.shape)
+                    temp[sequence] = x[sequence]
+                    prod_f = np.dot(self.F, pre_state)
+                    prod_Wxh = np.dot(self.Wxh, temp)
+                    sum1 = prod_f + prod_Wxh
+                    state = self.sigmoid(sum1)
+                    prod_Why = np.dot(self.Why, state)
+                    layers.append({'state':state, 'previous_state':pre_state})
+                    pre_state = state
 
-                # derivative of pred
-                dmul_v = (mul_v - y)
                 
-                # backward pass
-                for t in range(self.sequence_len):
-                    dV_t = np.dot(dmul_v, layers[t]['s'].T)
-                    dsv = np.dot(self.V.T, dmul_v)
+                dprod_Why = (prod_Why - y)
+                
+                
+                for num_sequence in range(self.sequence_len):
+                    dWhy_t = np.dot(dprod_Why, layers[num_sequence]['state'].T)
+                    ds_Why = np.dot(self.Why.T, dprod_Why)
                     
-                    d_add = add * (1 - add) * dsv
+                    d_sum1 = sum1 * (1 - sum1) * ds_Why
                     
-                    dmul_w = d_add * np.ones_like(mul_w)
+                    dprod_f = d_sum1 * np.ones_like(prod_f)
 
-                    dprev_s = np.dot(np.transpose(self.W), dmul_w)
+                    dpre_state = np.dot(self.F.T, dprod_f)
 
 
-                    for i in range(t-1, max(-1, t-self.bptt_truncate-1), -1):
-                        ds = dsv + dprev_s
-                        d_add = add * (1 - add) * ds
+                    for _ in range(num_sequence-1, max(-1, num_sequence-self.bptt_t-1), -1):
+                        ds = ds_Why + dpre_state
+                        d_sum1 = sum1 * (1 - sum1) * ds
 
-                        dmul_w = d_add * np.ones_like(mul_w)
-                        dmul_u = d_add * np.ones_like(mul_u)
-
-                        dW_i = np.dot(self.W, layers[t]['prev_s'])
-                        dprev_s = np.dot(np.transpose(self.W), dmul_w)
-
-                        new_input = np.zeros(x.shape)
-                        new_input[t] = x[t]
-                        dU_i = np.dot(self.U, new_input)
-                        dx = np.dot(np.transpose(self.U), dmul_u)
-
-                        dU_t += dU_i
-                        dW_t += dW_i
+                        dprod_f = d_sum1 * np.ones_like(prod_f)
                         
-                    dV += dV_t
-                    dU += dU_t
-                    dW += dW_t
+
+                        dF_i = np.dot(self.F, layers[num_sequence]['previous_state'])
+                        dpre_state = np.dot(self.F.T, dprod_f)
+
+                        temp = np.zeros(x.shape)
+                        temp[num_sequence] = x[num_sequence]
+                        dWxh_i = np.dot(self.Wxh, temp)
+                        
+
+                        dWxh_t += dWxh_i
+                        dF_t += dF_i
+                        
+                    dWhy += dWhy_t
+                    dWxh += dWxh_t
+                    dF += dF_t
 
                 
-                # update
-                self.U -= self.learning_rate * dU
-                self.V -= self.learning_rate * dV
-                self.W -= self.learning_rate * dW
+                
+                self.Wxh -= self.learning_rate * dWxh
+                self.Why -= self.learning_rate * dWhy
+                self.F -= self.learning_rate * dF
 
     def predict(self, X,Y, flag=False):
 
-        preds = []
-        for i in range(Y.shape[0]):
-            x, y = X[i], Y[i]
-            prev_s = np.zeros((self.hidden_dimension, 1))
-            # Forward pass
-            for t in range(self.sequence_len):
-                mul_u = np.dot(self.U, x)
-                mul_w = np.dot(self.W, prev_s)
-                add = mul_w + mul_u
-                s = self.sigmoid(add)
-                mul_v = np.dot(self.V, s)
-                prev_s = s
+        predictions = []
+        for record in range(Y.shape[0]):
+            pre_state = np.zeros((self.hidden_dimension, 1))
+            
+            for _ in range(self.sequence_len):
+                prod_Wxh = np.dot(self.Wxh, X[record])
+                prod_f = np.dot(self.F, pre_state)
+                sum1 = prod_f + prod_Wxh
+                s = self.sigmoid(sum1)
+                prod_Why = np.dot(self.Why, s)
+                pre_state = s
 
-            preds.append(mul_v)
-        preds = np.array(preds)
+            predictions.append(prod_Why)
+        predictions = np.array(predictions)
+        Y_values = Y[:, 0]
+        prediction_values = predictions[:, 0, 0]
         if flag:
 
             fig = plt.figure(figsize=(14,8))
-            plt.plot(preds[:, 0, 0], 'g')
-            plt.plot(Y[:, 0], 'r')
+            plt.plot(prediction_values, 'b')
+            plt.plot(Y_values, 'y')
 
             plt.show()
 
 
-        return preds, math.sqrt(mean_squared_error(Y[:, 0], preds[:, 0, 0]))
+        return predictions, math.sqrt(mean_squared_error(Y_values, prediction_values))
     
     def test_predict(self):
         return self.predict(self.X_test, self.Y_test, flag=True)

@@ -6,7 +6,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 class exploratory_data_analysis:
     def __init__(self) -> None:
-        self.data = pd.read_csv('Data/PET_PRI_GND_DCUS_NUS_W.csv')
+        self.data = pd.read_csv('https://personal.utdallas.edu/~sxs200389/PET_PRI_GND_DCUS_NUS_W.csv')
 
     def eda(self):
         logfile = PdfPages('MlProjectEDA.pdf')
